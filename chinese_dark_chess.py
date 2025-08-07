@@ -136,17 +136,12 @@ class ChineseDarkGame:
     def __init__(self):
         # express board as 8x4 2D array, using column major
         self.board = [FACE_DOWN_PIECE]* TOTAL_NUMBER_PIECES
-        self.board = [EMPTY_SPACE]* TOTAL_NUMBER_PIECES
-        self.board[0] = 2
-        self.board[1] = 9
-        #self.board_face_down_ = INIT_BOARD_FACE_UP # all 
-        #np.random.shuffle(self.board_face_down_)
+        self.board_face_down_ = INIT_BOARD_FACE_UP # all 
+        np.random.shuffle(self.board_face_down_)
         self.taken_pieces_black = []
         self.taken_pieces_red = []
-        #self.current_player_color = UNKNOWN_PLAYER  # 0: unknown player, it will happen when very beginning of the game, otherwise it should be 1(red) or 2(black)
         self.current_player = 1
         self.current_player_color = UNKNOWN_PLAYER
-        self.current_player_color = BLACK_PLAYER
         self.no_change_move = 0
 
     def restart(self):

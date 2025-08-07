@@ -3,7 +3,7 @@
 This is my play ground to build a Banqi agent.
 
 What is Banqi? Banqi is a traditional board game that is popular in Taiwan. For the play rules, please check [Banqi wiki](https://en.wikipedia.org/wiki/Banqi)
-![Banqi.](Banqi_example1.png))
+![Banqi.](Banqi_example1.png)
 
 # How to Install
 ```bash

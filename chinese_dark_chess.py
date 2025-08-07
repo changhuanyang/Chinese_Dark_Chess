@@ -104,6 +104,10 @@ PIECE_POWER = { 2: 6,
                 14: 1,
                 15: 0 }
 
+FLIP = 0
+MOVE = 1
+
+
 def is_red(piece_index):
     if piece_index >= 9:
         return True
@@ -195,62 +199,54 @@ class ChineseDarkGame:
             self.taken_pieces_black.append(piece)
         else:
             self.taken_pieces_red.append(piece)
-        
-    
-    @validate_row_col
-    def flip(self, row, col) -> bool:
+
+    def get_legal_moves(self):
+        legal_moves = []
+        # check flip
+        for r in range(8):
+            for c in range(4):
+                if self.can_flip(r, c):
+                    legal_moves.append((FLIP, r, c))
+
+        # check move
+        for r in range(8):
+            for c in range(4):
+                for next_r in range(8):
+                    for next_c in range(4):
+                        if self.can_move(r, c, next_r, next_c):
+                            legal_moves.append((MOVE, r, c,next_r, next_c))
+
+        return legal_moves
+
+    def can_flip(self, row, col) -> bool:
         pos = row*BOARD_COLS + col
         if self.board[pos] != FACE_DOWN_PIECE:  # can only flip face_down
             return False
         else:
-            self.board[pos] = self.board_face_down_[pos]
-            piece_index = self.board[pos]
-            if self.current_player_color == UNKNOWN_PLAYER:
-                if is_red(piece_index):
-                    self.current_player_color = RED_PLAYER
-                else:
-                    self.current_player_color = BLACK_PLAYER
-            self.no_change_move = 0
             return True
     
-    @validate_row_col
-    def move(self, row, col, next_row, next_col) -> bool:
-        print(f"try move ({row}, {col}) to {next_row, next_col}")
-        if not self.is_valid_pos(next_row, next_col):
-            print(f"Not valid pose: {next_row, next_col}")
-            return False
+    def can_move(self, row, col, next_row, next_col) -> bool:
         if row == next_row and col == next_col:
-            print(f"Same pose.")
             return False
         if (row != next_row ) and (col != next_col):
-            print(f"Can not do diagnoal.")
             return False
         pos = row*BOARD_COLS + col
         next_pos = next_row*BOARD_COLS + next_col
         cur_piece_index = self.board[pos]
         next_piece_index = self.board[next_pos]
-        print(f"cur_piece_index: {cur_piece_index}")
-        print(f"next_piece_index: {next_piece_index}")
         if self.current_player_color == RED_PLAYER and is_black(cur_piece_index):
-            print(f"輪到紅色了!")
             return False
         if self.current_player_color == BLACK_PLAYER and is_red(cur_piece_index):
-            print(f"輪到黑色了!")
             return False
         if cur_piece_index == FACE_DOWN_PIECE:
-            print(f"cur_piece_index is face down")
+            return False
         if cur_piece_index == EMPTY_SPACE:
-            print(f"cur_piece_index is empty")
             return False
         if next_piece_index == FACE_DOWN_PIECE:
-            print(f"next_piece_index is face down")
             return False
         if (is_red(cur_piece_index) and is_red(next_piece_index)) or (  is_black(cur_piece_index) and is_black(next_piece_index)): # same color
-                print(f"same color")
-                return False
+            return False
         if (abs(next_row-row) + abs(next_col-col)) != 1:
-            print(f"cur_piece_index: {cur_piece_index}")
-
             if cur_piece_index != 7 and cur_piece_index != 14: # 不是砲
                 return False
             # check if only one piece between the two pos
@@ -269,13 +265,54 @@ class ChineseDarkGame:
                     if self.board[tmp_pos] != EMPTY_SPACE:
                         count += 1
             if count == 1:
-                self.board[next_pos] = cur_piece_index
-                self.board[pos] = EMPTY_SPACE
-                self.add_taken_pieces(next_piece_index)
-                self.no_change_move = 0
                 return True
             else:
                 return False
+        else: # move distance = 1 case. Cannon jump is not included.
+            if next_piece_index == EMPTY_SPACE:
+                return True
+            if cur_piece_index == 7 or cur_piece_index == 14:
+                return False
+            if PIECE_POWER[cur_piece_index] == 6 and PIECE_POWER[cur_piece_index] == 0:# 將 不能吃 兵 
+                return False
+            if PIECE_POWER[cur_piece_index] == 0 and PIECE_POWER[next_piece_index] == 6: # 兵 能吃 將 
+                return True
+            if (PIECE_POWER[cur_piece_index] >= PIECE_POWER[next_piece_index]):
+                return True
+            else:
+                return False
+
+
+    @validate_row_col
+    def flip(self, row, col) -> bool:
+        if self.can_flip(row, col):
+            pos = row*BOARD_COLS + col
+            self.board[pos] = self.board_face_down_[pos]
+            piece_index = self.board[pos]
+            if self.current_player_color == UNKNOWN_PLAYER:
+                if is_red(piece_index):
+                    self.current_player_color = RED_PLAYER
+                else:
+                    self.current_player_color = BLACK_PLAYER
+            self.no_change_move = 0
+            return True
+        else:
+            return False
+
+    @validate_row_col
+    def move(self, row, col, next_row, next_col) -> bool:
+        if not self.can_move(row, col, next_row, next_col):
+            return False
+        pos = row*BOARD_COLS + col
+        next_pos = next_row*BOARD_COLS + next_col
+        cur_piece_index = self.board[pos]
+        next_piece_index = self.board[next_pos]
+        if (abs(next_row-row) + abs(next_col-col)) != 1:
+            self.board[next_pos] = cur_piece_index
+            self.board[pos] = EMPTY_SPACE
+            self.add_taken_pieces(next_piece_index)
+            self.no_change_move = 0
+            return True
         else: # move distance = 1 case. Cannon jump is not included.
             if next_piece_index == EMPTY_SPACE:
                 # Swap the values in the two poses
@@ -283,10 +320,6 @@ class ChineseDarkGame:
                 self.board[pos] = EMPTY_SPACE
                 self.no_change_move = self.no_change_move + 1
                 return True
-            if cur_piece_index == 7 or cur_piece_index == 14:
-                return False
-            if PIECE_POWER[cur_piece_index] == 6 and PIECE_POWER[cur_piece_index] == 0:# 將 不能吃 兵 
-                return False
             if PIECE_POWER[cur_piece_index] == 0 and PIECE_POWER[next_piece_index] == 6: # 兵 能吃 將 
                 self.board[next_pos] = cur_piece_index
                 self.board[pos] = EMPTY_SPACE
@@ -300,10 +333,7 @@ class ChineseDarkGame:
                 self.add_taken_pieces(next_piece_index)
                 self.no_change_move = 0
                 return True
-            else:
-                print(f"{INDEX_TO_CHINESE_MAP[cur_piece_index]} 不能吃 {INDEX_TO_CHINESE_MAP[next_piece_index]} !")
-                return False
-
+            raise RuntimeError("move failed ??")
     def change_player(self):
         if self.current_player_color == UNKNOWN_PLAYER:
             return False

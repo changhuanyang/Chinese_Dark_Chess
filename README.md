@@ -31,7 +31,13 @@ TBD
         game.board_state()
     ```
 2. What are my legal options?
+    ```python
+        legal_moves = game.get_legal_moves()
+    ```
 3. Has the game ended?
+    ```python
+        who_win = game.who_win() 
+    ```
 
 
 ## Test

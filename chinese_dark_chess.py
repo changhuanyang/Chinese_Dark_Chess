@@ -1,3 +1,35 @@
+"""Chinese Dark Chess (Banqi) Game Engine.
+
+This module implements a complete Chinese Dark Chess (Banqi) game engine with
+game state management, move validation, and win condition detection.
+
+Chinese Dark Chess is a traditional board game played on an 8x4 board where
+pieces are initially placed face-down and revealed during play. Players take
+turns flipping pieces or moving revealed pieces according to traditional
+Chinese chess rules with modifications for the hidden information gameplay.
+
+Piece Hierarchy (by power level):
+    - General (將/帥): Power 6, can capture all except Soldier
+    - Advisor (士/仕): Power 5
+    - Elephant (象/相): Power 4
+    - Horse (馬/俥): Power 3
+    - Chariot (車/傌): Power 2
+    - Cannon (包/砲): Power 1, can jump over pieces
+    - Soldier (卒/兵): Power 0, can capture General
+
+Example:
+    game = ChineseDarkGame()
+    legal_moves = game.get_legal_moves()
+    game.flip(0, 0)  # Flip piece at position (0,0)
+    game.change_player()
+    
+Constants:
+    BOARD_ROWS: Board height (8)
+    BOARD_COLS: Board width (4)
+    BLACK_PIECES: List of black piece indices [2-8]
+    RED_PIECES: List of red piece indices [9-15]
+"""
+
 # 象棋 英文代號
 # 空 0
 # 蓋牌 Unknown(N) 1 face down
@@ -109,19 +141,49 @@ MOVE = 1
 
 
 def is_red(piece_index):
+    """Checks if a piece belongs to the red player.
+    
+    Args:
+        piece_index: Integer representing the piece type (0-15).
+            Red pieces have indices 9-15.
+    
+    Returns:
+        bool: True if the piece is red (index >= 9), False otherwise.
+    """
     if piece_index >= 9:
         return True
     else:
         return False
 
 def is_black(piece_index):
+    """Checks if a piece belongs to the black player.
+    
+    Args:
+        piece_index: Integer representing the piece type (0-15).
+            Black pieces have indices 2-8.
+    
+    Returns:
+        bool: True if the piece is black (2 <= index <= 8), False otherwise.
+    """
     if piece_index <= 8 and piece_index >=2:
         return True
     else:
         return False
 
 def validate_row_col(func):
+    """Decorator that validates row and column arguments for board methods.
     
+    This decorator checks if the first two positional arguments (row, col)
+    are valid board positions before calling the decorated function.
+    
+    Args:
+        func: The function to be decorated. Should be a method that takes
+            row and col as its first two arguments after self.
+    
+    Returns:
+        function: The decorated function that validates position arguments.
+        Returns False if position is invalid, otherwise calls original function.
+    """
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         # Assuming 'a' and 'b' are the first two positional arguments
@@ -137,10 +199,33 @@ def validate_row_col(func):
 
 
 class ChineseDarkGame:
+    """Main game engine for Chinese Dark Chess (Banqi).
+    
+    This class manages the complete game state including board configuration,
+    piece positions, player turns, and win conditions. The game starts with
+    all pieces face-down and players take turns either flipping pieces or
+    moving revealed pieces according to traditional Chinese chess rules.
+    
+    Attributes:
+        board: List representing the 8x4 board state with piece indices.
+        board_face_down_: Shuffled list of actual piece values under face-down pieces.
+        taken_pieces_black: List of black pieces that have been captured.
+        taken_pieces_red: List of red pieces that have been captured.
+        current_player: Current player number (1 or 2).
+        current_player_color: Current player's color (RED_PLAYER, BLACK_PLAYER, or UNKNOWN_PLAYER).
+        no_change_move: Counter for moves that don't result in captures (for draw detection).
+    """
+    
     def __init__(self):
+        """Initializes a new Chinese Dark Chess game.
+        
+        Sets up the board with all pieces face-down in random positions,
+        initializes empty capture lists, and sets the starting player.
+        The first player's color is determined when they flip their first piece.
+        """
         # express board as 8x4 2D array, using column major
         self.board = [FACE_DOWN_PIECE]* TOTAL_NUMBER_PIECES
-        self.board_face_down_ = INIT_BOARD_FACE_UP # all 
+        self.board_face_down_ = INIT_BOARD_FACE_UP # all
         np.random.shuffle(self.board_face_down_)
         self.taken_pieces_black = []
         self.taken_pieces_red = []
@@ -149,6 +234,11 @@ class ChineseDarkGame:
         self.no_change_move = 0
 
     def restart(self):
+        """Resets the game to initial state.
+        
+        Reshuffles all pieces face-down, clears capture lists, and resets
+        player state to the beginning of a new game.
+        """
         self.board = [FACE_DOWN_PIECE]* TOTAL_NUMBER_PIECES
         self.board_face_down_ = INIT_BOARD_FACE_UP
         np.random.shuffle(self.board_face_down_)
@@ -158,16 +248,43 @@ class ChineseDarkGame:
         self.current_player_color = UNKNOWN_PLAYER
 
     def get_board_state(self):
+        """Gets the current board state as a 2D array.
+        
+        Returns:
+            numpy.ndarray: 8x4 array representing the board state where each
+                element contains a piece index (0=empty, 1=face-down, 2-15=pieces).
+        """
         board_state = np.reshape(self.board, (8,4))
         return board_state
     
-    def is_valid_pos(self, row, col) -> True:
+    def is_valid_pos(self, row, col) -> bool:
+        """Checks if the given position is within board boundaries.
+        
+        Args:
+            row: Row index (0-7).
+            col: Column index (0-3).
+            
+        Returns:
+            bool: True if position is valid, False otherwise.
+        """
         if row < 0 or row >= BOARD_ROWS: # check row
             return False
         if col < 0 or col >= BOARD_COLS: # check col
             return False
         return True
     def who_win(self):
+        """Determines the winner of the current game state.
+        
+        Checks for win conditions including elimination of all pieces of one color,
+        draw due to lack of progress, or ongoing game status.
+        
+        Returns:
+            int: Game outcome constant:
+                - DRAW (3): Game is a draw (20+ moves without captures)
+                - RED_WIN (1): Red player wins (no black pieces remain)
+                - BLACK_WIN (2): Black player wins (no red pieces remain)
+                - UNKNOWN (0): Game is still ongoing
+        """
         if self.no_change_move >= 20:
             return DRAW
         # all black in taken pieces
@@ -191,6 +308,16 @@ class ChineseDarkGame:
             return UNKNOWN
     
     def add_taken_pieces(self, piece):
+        """Adds a captured piece to the appropriate taken pieces list.
+        
+        Args:
+            piece: Integer representing the captured piece (2-15).
+                Black pieces (2-8) go to taken_pieces_black.
+                Red pieces (9-15) go to taken_pieces_red.
+                
+        Raises:
+            RuntimeError: If attempting to add EMPTY_SPACE or FACE_DOWN_PIECE.
+        """
         if piece == EMPTY_SPACE:
             raise RuntimeError("Try to add Empty piece in to taken pieces")
         if piece == FACE_DOWN_PIECE:
@@ -201,6 +328,18 @@ class ChineseDarkGame:
             self.taken_pieces_red.append(piece)
 
     def get_legal_moves(self):
+        """Generates all legal moves for the current game state.
+        
+        Examines the board to find all valid flip and move actions available
+        to the current player. Flip moves are available for face-down pieces,
+        while move actions are available for revealed pieces according to
+        movement and capture rules.
+        
+        Returns:
+            list: List of tuples representing legal moves:
+                - Flip moves: (FLIP, row, col)
+                - Move actions: (MOVE, from_row, from_col, to_row, to_col)
+        """
         legal_moves = []
         # check flip
         for r in range(8):
@@ -219,6 +358,15 @@ class ChineseDarkGame:
         return legal_moves
 
     def can_flip(self, row, col) -> bool:
+        """Checks if a piece at the given position can be flipped.
+        
+        Args:
+            row: Row index (0-7).
+            col: Column index (0-3).
+            
+        Returns:
+            bool: True if there is a face-down piece at this position, False otherwise.
+        """
         pos = row*BOARD_COLS + col
         if self.board[pos] != FACE_DOWN_PIECE:  # can only flip face_down
             return False
@@ -226,6 +374,24 @@ class ChineseDarkGame:
             return True
     
     def can_move(self, row, col, next_row, next_col) -> bool:
+        """Checks if a piece can be moved from one position to another.
+        
+        Validates all movement rules including:
+        - Player ownership of the piece
+        - Basic movement constraints (orthogonal only)
+        - Capture rules based on piece hierarchy
+        - Special cannon jumping rules
+        - General vs Soldier special interaction
+        
+        Args:
+            row: Starting row position (0-7).
+            col: Starting column position (0-3).
+            next_row: Target row position (0-7).
+            next_col: Target column position (0-3).
+            
+        Returns:
+            bool: True if the move is valid according to game rules, False otherwise.
+        """
         if row == next_row and col == next_col:
             return False
         if (row != next_row ) and (col != next_col):
@@ -273,9 +439,9 @@ class ChineseDarkGame:
                 return True
             if cur_piece_index == 7 or cur_piece_index == 14:
                 return False
-            if PIECE_POWER[cur_piece_index] == 6 and PIECE_POWER[cur_piece_index] == 0:# 將 不能吃 兵 
+            if PIECE_POWER[cur_piece_index] == 6 and PIECE_POWER[cur_piece_index] == 0:# 將 不能吃 兵
                 return False
-            if PIECE_POWER[cur_piece_index] == 0 and PIECE_POWER[next_piece_index] == 6: # 兵 能吃 將 
+            if PIECE_POWER[cur_piece_index] == 0 and PIECE_POWER[next_piece_index] == 6: # 兵 能吃 將
                 return True
             if (PIECE_POWER[cur_piece_index] >= PIECE_POWER[next_piece_index]):
                 return True
@@ -285,6 +451,20 @@ class ChineseDarkGame:
 
     @validate_row_col
     def flip(self, row, col) -> bool:
+        """Flips a face-down piece to reveal its identity.
+        
+        When a piece is flipped, it reveals the actual piece underneath and
+        may determine the current player's color if this is their first move.
+        Resets the no-change move counter.
+        
+        Args:
+            row: Row position of the piece to flip (0-7).
+            col: Column position of the piece to flip (0-3).
+            
+        Returns:
+            bool: True if flip was successful, False if invalid position or
+                piece cannot be flipped.
+        """
         if self.can_flip(row, col):
             pos = row*BOARD_COLS + col
             self.board[pos] = self.board_face_down_[pos]
@@ -301,6 +481,24 @@ class ChineseDarkGame:
 
     @validate_row_col
     def move(self, row, col, next_row, next_col) -> bool:
+        """Moves a piece from one position to another.
+        
+        Executes a validated move, handling captures, cannon jumps, and special
+        rules. Updates board state, manages captured pieces, and tracks move
+        counters for draw detection.
+        
+        Args:
+            row: Starting row position (0-7).
+            col: Starting column position (0-3).
+            next_row: Target row position (0-7).
+            next_col: Target column position (0-3).
+            
+        Returns:
+            bool: True if move was executed successfully, False if invalid.
+            
+        Raises:
+            RuntimeError: If move validation passed but execution failed.
+        """
         if not self.can_move(row, col, next_row, next_col):
             return False
         pos = row*BOARD_COLS + col
@@ -320,7 +518,7 @@ class ChineseDarkGame:
                 self.board[pos] = EMPTY_SPACE
                 self.no_change_move = self.no_change_move + 1
                 return True
-            if PIECE_POWER[cur_piece_index] == 0 and PIECE_POWER[next_piece_index] == 6: # 兵 能吃 將 
+            if PIECE_POWER[cur_piece_index] == 0 and PIECE_POWER[next_piece_index] == 6: # 兵 能吃 將
                 self.board[next_pos] = cur_piece_index
                 self.board[pos] = EMPTY_SPACE
                 self.add_taken_pieces(next_piece_index)
@@ -334,7 +532,18 @@ class ChineseDarkGame:
                 self.no_change_move = 0
                 return True
             raise RuntimeError("move failed ??")
+            
     def change_player(self):
+        """Switches to the next player's turn.
+        
+        Alternates between player 1 and player 2, and swaps the active color
+        between red and black. Cannot be called if current player color is
+        still unknown (before any pieces are flipped).
+        
+        Returns:
+            bool: True if player change was successful, False if current
+                player color is still unknown.
+        """
         if self.current_player_color == UNKNOWN_PLAYER:
             return False
         if self.current_player == 1:

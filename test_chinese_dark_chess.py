@@ -10,11 +10,21 @@ class TestStringMethods(unittest.TestCase):
         assert len(legal_moves) == 32
         for legal_move in legal_moves:
             type, _, _ = legal_move
-            assert type == FLIP
+            self.assertEqual(type,FLIP)
     
-    # def test_(self):
-    #     self.assertTrue('FOO'.isupper())
-    #     self.assertFalse('Foo'.isupper())
+    def test_general_moves_and_captures(self):
+        new_game = ChineseDarkGame()
+        new_game.board = np.full((BOARD_ROWS,BOARD_COLS), EMPTY_SPACE,  dtype=np.uint8)
+        new_game.board[0,0] = BLACK_GENERAL_PIECE
+        new_game.board[0,1] = RED_GENERAL_PIECE
+        new_game.current_player = 1
+        new_game.current_player_color = BLACK_PLAYER
+
+        legal_moves = new_game.get_legal_moves()
+        self.assertEqual(len(legal_moves), 2)
+        for legal_move in legal_moves:
+            type, _, _,_, _ = legal_move
+            self.assertEqual(type,MOVE)
 
     # def test_split(self):
     #     s = 'hello world'
